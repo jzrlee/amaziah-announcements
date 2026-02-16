@@ -119,6 +119,10 @@
             const CloseIcon = () => <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>;
             const RotateIcon = () => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 12"/><path d="M21 3v9h-9"/></svg>;
 
+            // Calculate if the image is rotated sideways (90 or 270 degrees)
+            // Used to swap max-width/height constraints for better fit
+            const isRotatedSideways = Math.abs(rotation % 180) === 90;
+
             if (loading) return <div className="h-screen flex items-center justify-center text-neutral-500 animate-pulse bg-neutral-900">Connecting to GitHub...</div>;
             if (errorMsg) return <div className="h-screen flex flex-col items-center justify-center text-red-400 bg-neutral-900 gap-4 p-4 text-center"><p>{errorMsg}</p></div>;
 
@@ -213,14 +217,17 @@
 
                             {/* Large Image with Rotation Transform */}
                             <div 
-                                className="relative flex items-center justify-center w-full h-full transition-transform duration-300 ease-out"
-                                style={{ transform: `rotate(${rotation}deg)` }}
+                                className="relative flex items-center justify-center w-full h-full"
                                 onClick={(e) => e.stopPropagation()} 
                             >
                                 <img 
                                     src={selectedImage.url} 
                                     alt={selectedImage.name} 
-                                    className="max-w-full max-h-full object-contain shadow-2xl rounded-sm"
+                                    style={{ transform: `rotate(${rotation}deg)` }}
+                                    className={`
+                                        shadow-2xl rounded-sm transition-all duration-300 ease-out object-contain
+                                        ${isRotatedSideways ? 'max-w-[90vh] max-h-[90vw]' : 'max-w-full max-h-full'}
+                                    `}
                                 />
                             </div>
                         </div>
