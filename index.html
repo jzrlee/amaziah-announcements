@@ -22,7 +22,7 @@
         /* Deep Maroon Background derived from the logo */
         body { background-color: #48191E; color: white; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
 
-        /* Option 2: Heartbeat Scale Animation - Faster and more distinct */
+        /* Option 2: Heartbeat Scale Animation */
         @keyframes heartbeat {
             0% { transform: scale(1); opacity: 1; }
             50% { transform: scale(1.15); opacity: 0.8; }
@@ -51,72 +51,208 @@
             const [loading, setLoading] = React.useState(true);
             const [errorMsg, setErrorMsg] = React.useState('');
             
-            // Lightbox States
+            // UI States
             const [selectedImage, setSelectedImage] = React.useState(null);
             const [rotation, setRotation] = React.useState(0);
+            
+            // ADMIN STATES
+            const [adminToken, setAdminToken] = React.useState(localStorage.getItem('github_pat') || '');
+            const [showLogin, setShowLogin] = React.useState(false);
+            const [showUpload, setShowUpload] = React.useState(false);
+            const [replacingFile, setReplacingFile] = React.useState(null); // State for the file being replaced
+            const [isUploading, setIsUploading] = React.useState(false);
 
             // Fetch images from GitHub API
-            React.useEffect(() => {
-                const fetchImages = async () => {
-                    // Create a promise that resolves after 2.5 seconds to force the animation to play
-                    const minLoadTime = new Promise(resolve => setTimeout(resolve, 2500));
+            const fetchImages = async () => {
+                if (CONFIG.username === "YOUR_GITHUB_USERNAME") {
+                    setLoading(false);
+                    setErrorMsg("SETUP_REQUIRED");
+                    return;
+                }
 
-                    if (CONFIG.username === "YOUR_GITHUB_USERNAME") {
-                        setLoading(false);
-                        setErrorMsg("SETUP_REQUIRED");
-                        return;
+                try {
+                    // Headers for potential authenticated requests (increases rate limit)
+                    const headers = adminToken ? { 'Authorization': `token ${adminToken}` } : {};
+
+                    const response = await fetch(`https://api.github.com/repos/${CONFIG.username}/${CONFIG.repo}/contents/${CONFIG.folder}`, { headers });
+                    
+                    if (!response.ok) {
+                        if (response.status === 404) throw new Error(`Could not find the '${CONFIG.folder}' folder in repo.`);
+                        throw new Error("Failed to connect to GitHub.");
                     }
+
+                    const data = await response.json();
+                    const imageFiles = Array.isArray(data) ? data
+                        .filter(file => file.name.match(/\.(jpg|jpeg|png|gif|webp)$/i))
+                        .map(file => ({
+                            id: file.sha,
+                            name: file.name,
+                            url: file.download_url,
+                            path: file.path,
+                            sha: file.sha
+                        }))
+                        // Sort A-Z (Oldest/First uploaded at the top)
+                        .sort((a, b) => a.name.localeCompare(b.name)) : [];
+
+                    setSlides(imageFiles);
+                    setLoading(false);
+                } catch (err) {
+                    console.error(err);
+                    setErrorMsg(err.message);
+                    setLoading(false);
+                }
+            };
+
+            // Initial Load
+            React.useEffect(() => {
+                const initLoad = async () => {
+                    const minLoadTime = new Promise(resolve => setTimeout(resolve, 2500));
+                    await Promise.all([fetchImages(), minLoadTime]);
+                };
+                initLoad();
+            }, []);
+
+            // --- ADMIN ACTIONS ---
+
+            const handleLogin = (e) => {
+                e.preventDefault();
+                const token = e.target.token.value;
+                if(token) {
+                    localStorage.setItem('github_pat', token);
+                    setAdminToken(token);
+                    setShowLogin(false);
+                    alert("Admin Access Granted!");
+                    fetchImages(); // Refresh to check if token works (and gets higher rate limit)
+                }
+            };
+
+            const handleLogout = () => {
+                if(confirm("Log out of Admin mode?")) {
+                    localStorage.removeItem('github_pat');
+                    setAdminToken('');
+                }
+            };
+
+            const handleUpload = async (e) => {
+                const file = e.target.files[0];
+                if (!file) return;
+                
+                setIsUploading(true);
+
+                // 1. Convert File to Base64
+                const reader = new FileReader();
+                reader.readAsDataURL(file);
+                reader.onload = async () => {
+                    const base64Content = reader.result.split(',')[1];
+                    // Format date for sorting: YYYY-MM-DD_Filename
+                    const datePrefix = new Date().toISOString().split('T')[0];
+                    const fileName = `${datePrefix}_${file.name.replace(/\s/g, '_')}`; // Clean spaces
 
                     try {
-                        // Wait for BOTH the fetch and the timer to finish
-                        const [response] = await Promise.all([
-                            fetch(`https://api.github.com/repos/${CONFIG.username}/${CONFIG.repo}/contents/${CONFIG.folder}`),
-                            minLoadTime
-                        ]);
+                        const response = await fetch(`https://api.github.com/repos/${CONFIG.username}/${CONFIG.repo}/contents/${CONFIG.folder}/${fileName}`, {
+                            method: 'PUT',
+                            headers: {
+                                'Authorization': `token ${adminToken}`,
+                                'Content-Type': 'application/json',
+                            },
+                            body: JSON.stringify({
+                                message: `Upload ${fileName}`,
+                                content: base64Content
+                            })
+                        });
+
+                        if (!response.ok) throw new Error('Upload failed');
                         
-                        if (!response.ok) {
-                            if (response.status === 404) throw new Error(`Could not find the '${CONFIG.folder}' folder in repo '${CONFIG.repo}'.`);
-                            if (response.status === 403) throw new Error("Rate limit exceeded. Try again in an hour.");
-                            throw new Error("Failed to connect to GitHub.");
-                        }
-
-                        const data = await response.json();
-
-                        const imageFiles = Array.isArray(data) ? data
-                            .filter(file => file.name.match(/\.(jpg|jpeg|png|gif|webp)$/i))
-                            .map(file => ({
-                                id: file.sha,
-                                name: file.name,
-                                url: file.download_url,
-                            }))
-                            // Sort A-Z (Oldest/First uploaded at the top)
-                            .sort((a, b) => a.name.localeCompare(b.name)) : [];
-
-                        setSlides(imageFiles);
-                        setLoading(false);
+                        alert("Announcement Uploaded Successfully!");
+                        setShowUpload(false);
+                        fetchImages(); // Refresh list
                     } catch (err) {
-                        console.error(err);
-                        setErrorMsg(err.message);
-                        setLoading(false);
+                        alert("Error uploading: " + err.message);
+                    } finally {
+                        setIsUploading(false);
                     }
                 };
+            };
 
-                fetchImages();
-            }, []);
+            const handleReplace = async (e) => {
+                const file = e.target.files[0];
+                if (!file || !replacingFile) return;
+                
+                setIsUploading(true);
+
+                const reader = new FileReader();
+                reader.readAsDataURL(file);
+                reader.onload = async () => {
+                    const base64Content = reader.result.split(',')[1];
+                    // IMPORTANT: We use the OLD file's path/name to overwrite it
+                    // We must provide the OLD file's SHA to confirm replacement
+                    const targetPath = replacingFile.path;
+                    const targetSha = replacingFile.sha;
+
+                    try {
+                        const response = await fetch(`https://api.github.com/repos/${CONFIG.username}/${CONFIG.repo}/contents/${targetPath}`, {
+                            method: 'PUT',
+                            headers: {
+                                'Authorization': `token ${adminToken}`,
+                                'Content-Type': 'application/json',
+                            },
+                            body: JSON.stringify({
+                                message: `Replace content of ${replacingFile.name}`,
+                                content: base64Content,
+                                sha: targetSha // Required for update
+                            })
+                        });
+
+                        if (!response.ok) throw new Error('Replace failed');
+                        
+                        alert("Image Replaced Successfully!");
+                        setReplacingFile(null);
+                        fetchImages(); // Refresh list
+                    } catch (err) {
+                        alert("Error replacing: " + err.message);
+                    } finally {
+                        setIsUploading(false);
+                    }
+                };
+            };
+
+            const handleDelete = async (file) => {
+                if(!confirm(`Are you sure you want to delete "${file.name}"?`)) return;
+
+                try {
+                    const response = await fetch(`https://api.github.com/repos/${CONFIG.username}/${CONFIG.repo}/contents/${file.path}`, {
+                        method: 'DELETE',
+                        headers: {
+                            'Authorization': `token ${adminToken}`,
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({
+                            message: `Delete ${file.name}`,
+                            sha: file.sha
+                        })
+                    });
+
+                    if (!response.ok) throw new Error('Delete failed');
+                    
+                    alert("Deleted successfully.");
+                    fetchImages(); // Refresh list
+                } catch (err) {
+                    alert("Error deleting: " + err.message);
+                }
+            };
+
+            // --- UI HELPERS ---
 
             const handleDownload = async (url, filename) => {
                 try {
                     const response = await fetch(url);
                     const blob = await response.blob();
-                    const blobUrl = window.URL.createObjectURL(blob);
-                    
                     const link = document.createElement('a');
-                    link.href = blobUrl;
+                    link.href = window.URL.createObjectURL(blob);
                     link.download = filename;
                     document.body.appendChild(link);
                     link.click();
                     document.body.removeChild(link);
-                    window.URL.revokeObjectURL(blobUrl);
                 } catch (e) {
                     window.open(url, '_blank');
                 }
@@ -124,89 +260,94 @@
 
             const openLightbox = (slide) => {
                 setSelectedImage(slide);
-                setRotation(0); // Reset rotation when opening new image
+                setRotation(0);
             };
 
             const rotateImage = (e) => {
                 e.stopPropagation();
-                // Toggle between 0 and 90 degrees
                 setRotation(prev => (prev === 0 ? 90 : 0));
             };
 
             // Icons
             const GalleryIcon = () => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="18" height="18" x="3" y="3" rx="2" ry="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/></svg>;
-            const UploadIcon = () => <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" x2="12" y1="3" y2="15"/></svg>;
+            const LockIcon = () => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>;
+            const UnlockIcon = () => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 9.9-1"></path></svg>;
+            const UploadIcon = () => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" x2="12" y1="3" y2="15"/></svg>;
             const DownloadIcon = () => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="15" y2="3"/></svg>;
+            const TrashIcon = () => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>;
+            const ReplaceIcon = () => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 2v6h-6"></path><path d="M3 12a9 9 0 0 1 15-6.7L21 8"></path><path d="M3 22v-6h6"></path><path d="M21 12a9 9 0 0 1-15 6.7L3 16"></path></svg>;
             const CloseIcon = () => <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>;
             const RotateIcon = () => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 12"/><path d="M21 3v9h-9"/></svg>;
 
-            // Calculate if the image is rotated sideways (90 or 270 degrees)
             const isRotatedSideways = Math.abs(rotation % 180) === 90;
 
-            // --- RENDER ---
-            
-            // Error State (Shows immediately, no fade)
             if (errorMsg) return <div className="h-screen flex flex-col items-center justify-center text-[#DCA943] bg-[#48191E] gap-4 p-4 text-center"><p>{errorMsg}</p></div>;
 
             return (
                 <div className="min-h-screen bg-[#48191E] text-gray-100 font-sans selection:bg-[#DCA943] selection:text-[#48191E] pb-20 relative">
                     
-                    {/* --- LOADING OVERLAY WITH FADE --- */}
-                    {/* This sits on top of the content. opacity-100 when loading, opacity-0 when done. pointer-events-none ensures clicks go through after fade. */}
+                    {/* --- LOADING OVERLAY --- */}
                     <div className={`fixed inset-0 z-[9999] bg-[#48191E] flex items-center justify-center transition-opacity duration-1000 ease-in-out ${loading ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}>
                         {CONFIG.logoUrl ? (
-                            <img 
-                                src={CONFIG.logoUrl} 
-                                alt="Loading..." 
-                                className="h-24 w-auto object-contain animate-heartbeat" 
-                            />
+                            <img src={CONFIG.logoUrl} alt="Loading..." className="h-24 w-auto object-contain animate-heartbeat" />
                         ) : (
                             <div className="text-[#DCA943] animate-pulse">Connecting to Amaziah Board...</div>
                         )}
                     </div>
 
-                    {/* --- MAIN CONTENT (Rendered underneath the loader) --- */}
-                    
-                    {/* Navbar - Made Darker */}
+                    {/* --- NAVBAR --- */}
                     <nav className="sticky top-0 z-50 bg-[#2a0c0f]/95 backdrop-blur border-b border-[#6b2a32] shadow-sm mb-8">
                         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                             <div className="flex items-center justify-between h-16">
                                 <div className="flex items-center gap-3">
-                                     {/* Logo Section */}
                                      {CONFIG.logoUrl ? (
                                         <img src={CONFIG.logoUrl} alt="Logo" className="h-12 w-auto object-contain" />
                                      ) : (
-                                        <div className="text-[#DCA943]">
-                                            <GalleryIcon />
-                                        </div>
+                                        <div className="text-[#DCA943]"><GalleryIcon /></div>
                                      )}
                                      {!CONFIG.logoUrl && <span className="font-bold text-xl tracking-tight text-white">AMAZIAH BOARD</span>}
                                 </div>
-                                <a 
-                                    href={`https://github.com/${CONFIG.username}/${CONFIG.repo}/upload/main/${CONFIG.folder}`}
-                                    target="_blank"
-                                    className="text-sm bg-[#5d2229] hover:bg-[#6b2a32] text-white transition-all flex items-center gap-2 px-4 py-2 rounded-full border border-[#6b2a32]"
-                                >
-                                    <UploadIcon /> <span className="hidden sm:inline">Upload New</span>
-                                </a>
+                                
+                                {/* ADMIN BUTTON */}
+                                {adminToken ? (
+                                    <div className="flex gap-2">
+                                        <button 
+                                            onClick={() => setShowUpload(true)}
+                                            className="text-sm bg-[#DCA943] hover:bg-yellow-400 text-[#48191E] font-bold transition-all flex items-center gap-2 px-4 py-2 rounded-full shadow-lg"
+                                        >
+                                            <UploadIcon /> <span className="hidden sm:inline">Upload</span>
+                                        </button>
+                                        <button onClick={handleLogout} className="p-2 text-white/50 hover:text-white" title="Logout">
+                                            <UnlockIcon />
+                                        </button>
+                                    </div>
+                                ) : (
+                                    <button 
+                                        onClick={() => setShowLogin(true)}
+                                        className="text-sm text-[#DCA943]/50 hover:text-[#DCA943] transition-all flex items-center gap-2 px-3 py-2"
+                                        title="Admin Login"
+                                    >
+                                        <LockIcon />
+                                    </button>
+                                )}
                             </div>
                         </div>
                     </nav>
 
-                    {/* Main Content */}
+                    {/* --- MAIN CONTENT --- */}
                     <main className="w-full px-2">
                         {!loading && slides.length === 0 ? (
                             <div className="text-center py-20">
                                 <h3 className="text-lg font-medium text-[#DCA943]">No announcements found</h3>
-                                <p className="text-sm text-gray-400 mt-2">Upload images to GitHub to get started.</p>
+                                <p className="text-sm text-gray-400 mt-2">
+                                    {adminToken ? "Click 'Upload' to add one." : "Admin login required to upload."}
+                                </p>
                             </div>
                         ) : (
-                            // Stack layout with different spacing and width for mobile vs desktop
                             <div className="flex flex-col items-center gap-3 md:gap-8">
                                 {slides.map((slide) => (
                                     <div key={slide.id} className="relative w-full md:w-[85%] bg-[#5d2229] rounded-lg overflow-hidden shadow-2xl border border-[#6b2a32] group transition-transform duration-300 hover:scale-[1.01]">
                                         
-                                        {/* Image (Clickable for Zoom) */}
                                         <img 
                                             src={slide.url} 
                                             alt={slide.name}
@@ -215,68 +356,145 @@
                                             onClick={() => openLightbox(slide)}
                                         />
                                         
-                                        {/* Floating Download Button (Top Right) */}
-                                        <button
-                                            onClick={(e) => {
-                                                e.stopPropagation(); 
-                                                handleDownload(slide.url, slide.name);
-                                            }}
-                                            className="absolute top-4 right-4 p-3 rounded-full bg-[#48191E]/80 hover:bg-[#DCA943] text-[#DCA943] hover:text-[#48191E] backdrop-blur-sm transition-all duration-300 shadow-lg border border-[#DCA943]/30 z-10"
-                                            title="Download Image"
-                                        >
-                                            <DownloadIcon />
-                                        </button>
-
+                                        <div className="absolute top-4 right-4 flex gap-2 z-10">
+                                            {/* Admin Actions */}
+                                            {adminToken && (
+                                                <>
+                                                    {/* Delete Button */}
+                                                    <button
+                                                        onClick={(e) => { e.stopPropagation(); handleDelete(slide); }}
+                                                        className="p-3 rounded-full bg-red-900/80 hover:bg-red-600 text-white backdrop-blur-sm transition-colors shadow-lg border border-red-500/30"
+                                                        title="Delete Announcement"
+                                                    >
+                                                        <TrashIcon />
+                                                    </button>
+                                                    
+                                                    {/* Replace/Fix Button */}
+                                                    <button
+                                                        onClick={(e) => { e.stopPropagation(); setReplacingFile(slide); }}
+                                                        className="p-3 rounded-full bg-blue-900/80 hover:bg-blue-600 text-white backdrop-blur-sm transition-colors shadow-lg border border-blue-500/30"
+                                                        title="Replace/Fix Image"
+                                                    >
+                                                        <ReplaceIcon />
+                                                    </button>
+                                                </>
+                                            )}
+                                            
+                                            {/* Download Button */}
+                                            <button
+                                                onClick={(e) => { e.stopPropagation(); handleDownload(slide.url, slide.name); }}
+                                                className="p-3 rounded-full bg-[#48191E]/80 hover:bg-[#DCA943] text-[#DCA943] hover:text-[#48191E] backdrop-blur-sm transition-all duration-300 shadow-lg border border-[#DCA943]/30"
+                                                title="Download Image"
+                                            >
+                                                <DownloadIcon />
+                                            </button>
+                                        </div>
                                     </div>
                                 ))}
                             </div>
                         )}
                     </main>
 
-                    {/* Full Screen Zoom Modal */}
+                    {/* --- MODALS --- */}
+
+                    {/* Login Modal */}
+                    {showLogin && (
+                        <div className="fixed inset-0 z-[100] bg-black/80 flex items-center justify-center p-4 backdrop-blur-sm">
+                            <div className="bg-[#5d2229] p-6 rounded-xl border border-[#DCA943]/30 w-full max-w-sm shadow-2xl">
+                                <h2 className="text-xl font-bold text-[#DCA943] mb-4">Tech Team Login</h2>
+                                <form onSubmit={handleLogin} className="flex flex-col gap-4">
+                                    <input 
+                                        type="password" 
+                                        name="token" 
+                                        placeholder="Paste Shared Key here..." 
+                                        className="bg-[#2a0c0f] border border-[#6b2a32] text-white p-3 rounded focus:outline-none focus:border-[#DCA943]"
+                                        autoFocus
+                                    />
+                                    <div className="flex gap-2 justify-end">
+                                        <button type="button" onClick={() => setShowLogin(false)} className="px-4 py-2 text-gray-400 hover:text-white">Cancel</button>
+                                        <button type="submit" className="px-4 py-2 bg-[#DCA943] text-[#48191E] font-bold rounded hover:bg-yellow-400">Login</button>
+                                    </div>
+                                </form>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Upload Modal */}
+                    {showUpload && (
+                        <div className="fixed inset-0 z-[100] bg-black/80 flex items-center justify-center p-4 backdrop-blur-sm">
+                            <div className="bg-[#5d2229] p-6 rounded-xl border border-[#DCA943]/30 w-full max-w-sm shadow-2xl">
+                                <h2 className="text-xl font-bold text-[#DCA943] mb-4">Upload Announcement</h2>
+                                <div className="flex flex-col gap-6">
+                                    <label className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed border-[#DCA943]/30 rounded-lg cursor-pointer hover:bg-[#48191E] transition-colors">
+                                        <div className="flex flex-col items-center justify-center pt-5 pb-6">
+                                            {isUploading ? (
+                                                <div className="animate-spin h-8 w-8 border-4 border-[#DCA943] border-t-transparent rounded-full"></div>
+                                            ) : (
+                                                <>
+                                                    <UploadIcon className="w-8 h-8 text-[#DCA943] mb-2" />
+                                                    <p className="text-sm text-gray-400">Click to select file</p>
+                                                </>
+                                            )}
+                                        </div>
+                                        <input type="file" className="hidden" accept="image/*" onChange={handleUpload} disabled={isUploading} />
+                                    </label>
+                                    <button onClick={() => setShowUpload(false)} className="text-gray-400 hover:text-white self-center">Cancel</button>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Replace Modal */}
+                    {replacingFile && (
+                        <div className="fixed inset-0 z-[100] bg-black/80 flex items-center justify-center p-4 backdrop-blur-sm">
+                            <div className="bg-[#5d2229] p-6 rounded-xl border border-[#DCA943]/30 w-full max-w-sm shadow-2xl">
+                                <h2 className="text-xl font-bold text-[#DCA943] mb-2">Replace Image</h2>
+                                <p className="text-sm text-gray-300 mb-4">
+                                    You are replacing content for: <br/>
+                                    <span className="font-mono text-yellow-200">{replacingFile.name}</span>
+                                    <br/><br/>
+                                    <span className="text-red-300 text-xs">* Filename will remain the same to keep sort order.</span>
+                                </p>
+                                <div className="flex flex-col gap-6">
+                                    <label className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed border-[#DCA943]/30 rounded-lg cursor-pointer hover:bg-[#48191E] transition-colors">
+                                        <div className="flex flex-col items-center justify-center pt-5 pb-6">
+                                            {isUploading ? (
+                                                <div className="animate-spin h-8 w-8 border-4 border-[#DCA943] border-t-transparent rounded-full"></div>
+                                            ) : (
+                                                <>
+                                                    <ReplaceIcon className="w-8 h-8 text-[#DCA943] mb-2" />
+                                                    <p className="text-sm text-gray-400">Select new image</p>
+                                                </>
+                                            )}
+                                        </div>
+                                        <input type="file" className="hidden" accept="image/*" onChange={handleReplace} disabled={isUploading} />
+                                    </label>
+                                    <button onClick={() => setReplacingFile(null)} className="text-gray-400 hover:text-white self-center">Cancel</button>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Lightbox Modal */}
                     {selectedImage && (
                         <div 
                             className="fixed inset-0 z-[100] bg-[#2a0c0f]/95 flex items-center justify-center p-2 backdrop-blur-sm animate-in fade-in duration-200"
                             onClick={() => setSelectedImage(null)}
                         >
-                            {/* Actions Container (Top Right) */}
                             <div className="absolute top-4 right-4 flex gap-4 z-[110]">
-                                
-                                {/* Rotate Button */}
-                                <button 
-                                    className="p-3 text-white/70 hover:text-[#DCA943] hover:bg-[#48191E] rounded-full transition-colors flex flex-col items-center gap-1"
-                                    onClick={rotateImage}
-                                    title={rotation === 0 ? "Rotate 90°" : "Reset Rotation"}
-                                >
-                                    <RotateIcon />
-                                    <span className="text-[10px] font-medium uppercase tracking-wide text-[#DCA943]">
-                                        {rotation === 0 ? "Rotate" : "Reset"}
-                                    </span>
+                                <button className="p-3 text-white/70 hover:text-[#DCA943] rounded-full flex flex-col items-center gap-1" onClick={rotateImage}>
+                                    <RotateIcon /><span className="text-[10px] uppercase text-[#DCA943]">{rotation === 0 ? "Rotate" : "Reset"}</span>
                                 </button>
-
-                                {/* Close Button */}
-                                <button 
-                                    className="p-3 text-white/70 hover:text-red-400 hover:bg-red-900/20 rounded-full transition-colors flex flex-col items-center gap-1"
-                                    onClick={() => setSelectedImage(null)}
-                                    title="Close"
-                                >
+                                <button className="p-3 text-white/70 hover:text-red-400 rounded-full flex flex-col items-center gap-1" onClick={() => setSelectedImage(null)}>
                                     <CloseIcon />
                                 </button>
                             </div>
-
-                            {/* Large Image with Rotation Transform */}
-                            <div 
-                                className="relative flex items-center justify-center w-full h-full"
-                                onClick={(e) => e.stopPropagation()} 
-                            >
+                            <div className="relative flex items-center justify-center w-full h-full" onClick={(e) => e.stopPropagation()}>
                                 <img 
                                     src={selectedImage.url} 
                                     alt={selectedImage.name} 
                                     style={{ transform: `rotate(${rotation}deg)` }}
-                                    className={`
-                                        shadow-2xl rounded-sm transition-all duration-300 ease-out object-contain
-                                        ${isRotatedSideways ? 'max-w-[90vh] max-h-[90vw]' : 'max-w-full max-h-full'}
-                                    `}
+                                    className={`shadow-2xl rounded-sm transition-all duration-300 ease-out object-contain ${isRotatedSideways ? 'max-w-[90vh] max-h-[90vw]' : 'max-w-full max-h-full'}`}
                                 />
                             </div>
                         </div>
