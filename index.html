@@ -31,9 +31,8 @@
         // --- CONFIGURATION ---
         const CONFIG = {
             username: "jzrlee",               
-            repo: "amaziah-announcements",    // UPDATED: Corrected spelling based on your screenshot
+            repo: "amaziah-announcements",    
             folder: "images",                 
-            // UPDATED: I added the raw link to your logo automatically below:
             logoUrl: "https://raw.githubusercontent.com/jzrlee/amaziah-announcements/main/logo.png"
         };
 
@@ -73,8 +72,7 @@
                                 name: file.name,
                                 url: file.download_url,
                             }))
-                            // UPDATED: Changed from 'b.name.localeCompare(a.name)' to 'a.name.localeCompare(b.name)'
-                            // This sorts A-Z (Oldest/First uploaded at the top, Newest at the bottom)
+                            // Sort A-Z (Oldest/First uploaded at the top)
                             .sort((a, b) => a.name.localeCompare(b.name)) : [];
 
                         setSlides(imageFiles);
@@ -149,8 +147,6 @@
                                             <GalleryIcon />
                                         </div>
                                      )}
-                                     {/* Removed Text Header to let Logo stand out, or keep if logo is icon-only. 
-                                         Based on your logo, it has text, so I will hide this text if logo is present. */}
                                      {!CONFIG.logoUrl && <span className="font-bold text-xl tracking-tight text-white">AMAZIAH BOARD</span>}
                                 </div>
                                 <a 
@@ -172,10 +168,12 @@
                                 <p className="text-sm text-gray-400 mt-2">Upload images to GitHub to get started.</p>
                             </div>
                         ) : (
-                            // Stack layout - Images take 85% width
-                            <div className="flex flex-col items-center gap-8">
+                            // UPDATED: Stack layout with different spacing and width for mobile vs desktop
+                            // gap-3 (mobile) vs md:gap-8 (desktop)
+                            <div className="flex flex-col items-center gap-3 md:gap-8">
                                 {slides.map((slide) => (
-                                    <div key={slide.id} className="relative w-[85%] bg-[#5d2229] rounded-lg overflow-hidden shadow-2xl border border-[#6b2a32] group transition-transform duration-300 hover:scale-[1.01]">
+                                    // UPDATED: w-full (mobile) vs md:w-[85%] (desktop)
+                                    <div key={slide.id} className="relative w-full md:w-[85%] bg-[#5d2229] rounded-lg overflow-hidden shadow-2xl border border-[#6b2a32] group transition-transform duration-300 hover:scale-[1.01]">
                                         
                                         {/* Image (Clickable for Zoom) */}
                                         <img 
