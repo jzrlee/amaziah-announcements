@@ -62,7 +62,8 @@
             const [isUploading, setIsUploading] = React.useState(false);
 
             // Fetch images from GitHub API
-            const fetchImages = async () => {
+            // 'isBackground' param prevents full-screen errors during auto-refresh
+            const fetchImages = async (isBackground = false) => {
                 if (CONFIG.username === "YOUR_GITHUB_USERNAME") {
                     setLoading(false);
                     setErrorMsg("SETUP_REQUIRED");
@@ -73,7 +74,7 @@
                     // Headers for potential authenticated requests (increases rate limit)
                     const headers = adminToken ? { 'Authorization': `token ${adminToken}` } : {};
 
-                    // UPDATED: Added timestamp (?t=...) and cache: 'no-store' to force fresh data from GitHub
+                    // Added timestamp (?t=...) and cache: 'no-store' to force fresh data from GitHub
                     const response = await fetch(`https://api.github.com/repos/${CONFIG.username}/${CONFIG.repo}/contents/${CONFIG.folder}?t=${Date.now()}`, { 
                         headers,
                         cache: 'no-store'
@@ -90,7 +91,7 @@
                         .map(file => ({
                             id: file.sha,
                             name: file.name,
-                            // UPDATED: Added timestamp to image URL to prevent loading stale/cached images
+                            // Added timestamp to image URL to prevent loading stale/cached images
                             url: `${file.download_url}?t=${Date.now()}`,
                             path: file.path,
                             sha: file.sha
@@ -99,11 +100,15 @@
                         .sort((a, b) => a.name.localeCompare(b.name)) : [];
 
                     setSlides(imageFiles);
-                    setLoading(false);
+                    if (!isBackground) setLoading(false);
                 } catch (err) {
                     console.error(err);
-                    setErrorMsg(err.message);
-                    setLoading(false);
+                    // Only show full screen error on initial load. 
+                    // If background refresh fails (e.g. slight internet drop), keep showing old slides.
+                    if (!isBackground) {
+                        setErrorMsg(err.message);
+                        setLoading(false);
+                    }
                 }
             };
 
@@ -115,6 +120,16 @@
                 };
                 initLoad();
             }, []);
+
+            // Auto-Refresh Logic (Every 2 minutes)
+            React.useEffect(() => {
+                const intervalId = setInterval(() => {
+                    // Pass true so we don't trigger loading screens or blocking errors
+                    fetchImages(true); 
+                }, 120000); // 120,000 ms = 2 minutes
+
+                return () => clearInterval(intervalId);
+            }, [adminToken]); // Re-create interval if token changes (to update headers)
 
             // --- ADMIN ACTIONS ---
 
