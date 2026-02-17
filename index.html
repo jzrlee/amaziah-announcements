@@ -109,7 +109,8 @@
 
             const rotateImage = (e) => {
                 e.stopPropagation();
-                setRotation(prev => prev + 90);
+                // Toggle between 0 and 90 degrees
+                setRotation(prev => (prev === 0 ? 90 : 0));
             };
 
             // Icons
@@ -134,7 +135,7 @@
                             <div className="flex items-center justify-between h-16">
                                 <div className="flex items-center gap-3">
                                      <GalleryIcon className="text-blue-500" />
-                                     <span className="font-bold text-xl tracking-tight">Amaziah Baptist Church Digital Bulletin</span>
+                                     <span className="font-bold text-xl tracking-tight">Church Board</span>
                                 </div>
                                 <a 
                                     href={`https://github.com/${CONFIG.username}/${CONFIG.repo}/upload/main/${CONFIG.folder}`}
@@ -199,10 +200,12 @@
                                 <button 
                                     className="p-3 text-white/70 hover:text-white hover:bg-white/10 rounded-full transition-colors flex flex-col items-center gap-1"
                                     onClick={rotateImage}
-                                    title="Rotate 90°"
+                                    title={rotation === 0 ? "Rotate 90°" : "Reset Rotation"}
                                 >
                                     <RotateIcon />
-                                    <span className="text-[10px] font-medium uppercase tracking-wide">Rotate</span>
+                                    <span className="text-[10px] font-medium uppercase tracking-wide">
+                                        {rotation === 0 ? "Rotate" : "Reset"}
+                                    </span>
                                 </button>
 
                                 {/* Close Button */}
