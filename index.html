@@ -30,10 +30,11 @@
         
         // --- CONFIGURATION ---
         const CONFIG = {
-            username: "jzrlee",               // Your username
-            repo: "amaziah-annoucements",     // Your repo name
-            folder: "images",                 // The folder where you upload images
-            logoUrl: "https://raw.githubusercontent.com/jzrlee/amaziah-announcements/main/logo.png"  // OPTIONAL: Paste the URL to your logo.png here (e.g., "https://raw.githubusercontent.com/...")
+            username: "jzrlee",               
+            repo: "amaziah-announcements",    // UPDATED: Corrected spelling based on your screenshot
+            folder: "images",                 
+            // UPDATED: I added the raw link to your logo automatically below:
+            logoUrl: "https://raw.githubusercontent.com/jzrlee/amaziah-announcements/main/logo.png"
         };
 
         function App() {
@@ -72,7 +73,9 @@
                                 name: file.name,
                                 url: file.download_url,
                             }))
-                            .sort((a, b) => b.name.localeCompare(a.name)) : [];
+                            // UPDATED: Changed from 'b.name.localeCompare(a.name)' to 'a.name.localeCompare(b.name)'
+                            // This sorts A-Z (Oldest/First uploaded at the top, Newest at the bottom)
+                            .sort((a, b) => a.name.localeCompare(b.name)) : [];
 
                         setSlides(imageFiles);
                         setLoading(false);
@@ -140,13 +143,15 @@
                                 <div className="flex items-center gap-3">
                                      {/* Logo Section */}
                                      {CONFIG.logoUrl ? (
-                                        <img src={CONFIG.logoUrl} alt="Logo" className="h-10 w-auto object-contain" />
+                                        <img src={CONFIG.logoUrl} alt="Logo" className="h-12 w-auto object-contain" />
                                      ) : (
                                         <div className="text-[#DCA943]">
                                             <GalleryIcon />
                                         </div>
                                      )}
-                                     <span className="font-bold text-xl tracking-tight text-white">Digital Bulletin</span>
+                                     {/* Removed Text Header to let Logo stand out, or keep if logo is icon-only. 
+                                         Based on your logo, it has text, so I will hide this text if logo is present. */}
+                                     {!CONFIG.logoUrl && <span className="font-bold text-xl tracking-tight text-white">AMAZIAH BOARD</span>}
                                 </div>
                                 <a 
                                     href={`https://github.com/${CONFIG.username}/${CONFIG.repo}/upload/main/${CONFIG.folder}`}
