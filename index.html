@@ -163,8 +163,10 @@
                 reader.readAsDataURL(file);
                 reader.onload = async () => {
                     const base64Content = reader.result.split(',')[1];
-                    // Format date for sorting: YYYY-MM-DD_Filename
-                    const datePrefix = new Date().toISOString().split('T')[0];
+                    
+                    // UPDATED: Format date with TIME for precise sorting: YYYY-MM-DD_HH-mm-ss_Filename
+                    const now = new Date();
+                    const datePrefix = now.toISOString().replace(/T/, '_').replace(/\..+/, '').replace(/:/g, '-');
                     const fileName = `${datePrefix}_${file.name.replace(/\s/g, '_')}`; // Clean spaces
 
                     try {
