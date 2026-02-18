@@ -265,7 +265,7 @@
                 });
             };
 
-            // --- DELETE LOGIC (Single & Batch) ---
+            // --- DELETE LOGIC (Batch Only) ---
 
             const toggleSelectMode = () => {
                 setIsSelectMode(!isSelectMode);
@@ -296,26 +296,11 @@
                 if (!response.ok) throw new Error('Delete failed');
             };
 
-            // Single Delete
-            const handleDeleteSingle = (file) => {
-                showConfirm("Confirm Delete", `Are you sure you want to delete "${file.name}"?`, async () => {
-                    closeConfirm();
-                    // Optional: Show a loading state here if desired, or just proceed
-                    try {
-                        await deleteFileFromGithub(file);
-                        showAlert("Success", "Deleted successfully.");
-                        fetchImages();
-                    } catch (err) {
-                        showAlert("Error", "Error deleting: " + err.message);
-                    }
-                });
-            };
-
             // Batch Delete
             const handleBatchDelete = () => {
                 if (deleteSelection.length === 0) return;
                 
-                showConfirm("Confirm Batch Delete", `Are you sure you want to delete ${deleteSelection.length} selected images?`, async () => {
+                showConfirm("Confirm Delete", `Are you sure you want to delete ${deleteSelection.length} selected image(s)?`, async () => {
                     closeConfirm();
                     setIsUploading(true); // Reusing uploading state for generic busy state
                     setUploadStatus('Deleting...');
@@ -520,16 +505,6 @@
                                             {/* Actions (Hidden in select mode) */}
                                             {!isSelectMode && (
                                                 <div className="absolute top-4 right-4 flex gap-2 z-10">
-                                                    {adminToken && (
-                                                        <button
-                                                            onClick={(e) => { e.stopPropagation(); handleDeleteSingle(slide); }}
-                                                            className="p-3 rounded-full bg-red-900/80 hover:bg-red-600 text-white backdrop-blur-sm transition-colors shadow-lg border border-red-500/30"
-                                                            title="Delete Announcement"
-                                                        >
-                                                            <TrashIcon />
-                                                        </button>
-                                                    )}
-                                                    
                                                     <button
                                                         onClick={(e) => { e.stopPropagation(); handleDownload(slide.url, slide.name); }}
                                                         className="p-3 rounded-full bg-[#48191E]/80 hover:bg-[#DCA943] text-[#DCA943] hover:text-[#48191E] backdrop-blur-sm transition-all duration-300 shadow-lg border border-[#DCA943]/30"
