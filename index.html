@@ -55,6 +55,7 @@
             const [loading, setLoading] = React.useState(true);
             const [errorMsg, setErrorMsg] = React.useState('');
             const [lastUpdated, setLastUpdated] = React.useState(null);
+            const [presentationDate, setPresentationDate] = React.useState('');
             
             // UI States
             const [selectedImage, setSelectedImage] = React.useState(null);
@@ -167,6 +168,18 @@
                     await Promise.all([fetchImages(), minLoadTime]);
                 };
                 initLoad();
+            }, []);
+
+            // Calculate Presentation Date (Next Sunday)
+            React.useEffect(() => {
+                const d = new Date();
+                // Calculate days until next Sunday (0 is Sunday)
+                // If today is Sunday (0), we show today.
+                const diff = (7 - d.getDay()) % 7; 
+                d.setDate(d.getDate() + diff);
+                
+                const options = { month: 'short', day: 'numeric', year: 'numeric' };
+                setPresentationDate(d.toLocaleDateString('en-US', options));
             }, []);
 
             // Auto-Refresh
@@ -413,7 +426,6 @@
                 <div className="min-h-screen bg-[#48191E] text-gray-100 font-sans selection:bg-[#DCA943] selection:text-[#48191E] pb-20 relative">
                     
                     {/* --- LOADING OVERLAY --- */}
-                    {/* FIXED: Removed restrictive !showUpload logic so it shows ON TOP of modals */}
                     <div className={`fixed inset-0 z-[9999] bg-[#48191E] flex items-center justify-center transition-opacity duration-1000 ease-in-out ${loading || isUploading ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}>
                         {CONFIG.logoUrl ? (
                             <div className="flex flex-col items-center gap-4">
@@ -510,15 +522,27 @@
                             </div>
                         ) : (
                             <div className="flex flex-col items-center w-full">
-                                {/* Last Updated Label */}
-                                {lastUpdated && (
-                                    <div className="flex items-center gap-2 mb-6 px-4 py-1 rounded-full bg-[#2a0c0f]/50 border border-[#DCA943]/20">
-                                        <div className="w-1.5 h-1.5 rounded-full bg-[#DCA943] animate-pulse"></div>
-                                        <span className="text-xs font-medium text-[#DCA943]/80 tracking-wider">
-                                            Last updated: {lastUpdated}
+                                
+                                {/* STATUS BARS (Split Layout) */}
+                                <div className="w-full flex flex-col md:flex-row justify-between items-center gap-2 mb-6 md:w-[85%]">
+                                    
+                                    {/* Left: Presented at */}
+                                    <div className="flex items-center gap-2 px-4 py-2 rounded-full bg-[#2a0c0f]/80 border border-[#DCA943]/30 shadow-lg backdrop-blur-sm">
+                                        <span className="text-sm font-bold text-white tracking-wide">
+                                            Presented at Sunday ({presentationDate})
                                         </span>
                                     </div>
-                                )}
+
+                                    {/* Right: Last Updated */}
+                                    {lastUpdated && (
+                                        <div className="flex items-center gap-2 px-4 py-2 rounded-full bg-[#2a0c0f]/80 border border-[#DCA943]/30 shadow-lg backdrop-blur-sm">
+                                            <div className="w-2 h-2 rounded-full bg-[#DCA943] animate-pulse"></div>
+                                            <span className="text-sm font-bold text-white tracking-wide">
+                                                Last updated: {lastUpdated}
+                                            </span>
+                                        </div>
+                                    )}
+                                </div>
 
                                 {/* Slides Container */}
                                 <div className="w-full flex flex-col items-center gap-3 md:gap-8">
