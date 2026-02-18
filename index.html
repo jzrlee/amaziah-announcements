@@ -379,11 +379,12 @@
                 <div className="min-h-screen bg-[#48191E] text-gray-100 font-sans selection:bg-[#DCA943] selection:text-[#48191E] pb-20 relative">
                     
                     {/* --- LOADING OVERLAY --- */}
-                    <div className={`fixed inset-0 z-[9999] bg-[#48191E] flex items-center justify-center transition-opacity duration-1000 ease-in-out ${loading || (isUploading && !showUpload && !confirmState.show) ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}>
+                    {/* UPDATED: Overlay is visible if loading OR isUploading. Removed restrictive && !showUpload logic */}
+                    <div className={`fixed inset-0 z-[9999] bg-[#48191E] flex items-center justify-center transition-opacity duration-1000 ease-in-out ${loading || isUploading ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}>
                         {CONFIG.logoUrl ? (
                             <div className="flex flex-col items-center gap-4">
                                 <img src={CONFIG.logoUrl} alt="Loading..." className="h-24 w-auto object-contain animate-heartbeat" />
-                                {isUploading && !showUpload && !confirmState.show && <p className="text-[#DCA943] text-sm animate-pulse">{uploadStatus}</p>}
+                                {isUploading && <p className="text-[#DCA943] text-sm animate-pulse">{uploadStatus}</p>}
                             </div>
                         ) : (
                             <div className="text-[#DCA943] animate-pulse">Connecting to Amaziah Board...</div>
@@ -630,13 +631,7 @@
                                     )}
                                 </div>
 
-                                {/* Upload Status */}
-                                {isUploading && (
-                                    <div className="mb-4 text-center">
-                                        <div className="animate-spin h-6 w-6 border-2 border-[#DCA943] border-t-transparent rounded-full mx-auto mb-2"></div>
-                                        <p className="text-sm text-[#DCA943]">{uploadStatus || 'Uploading...'}</p>
-                                    </div>
-                                )}
+                                {/* Removed local upload status spinner */}
 
                                 <div className="flex gap-3 justify-end pt-2 border-t border-[#DCA943]/20">
                                     <button 
