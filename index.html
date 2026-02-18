@@ -133,7 +133,10 @@
                             if (!isBackground) setLoading(false);
                             return;
                         }
-                        throw new Error("Failed to connect to GitHub.");
+                        if (response.status === 403) {
+                             throw new Error("GitHub Rate Limit Exceeded. Please wait 1 hour or Log In.");
+                        }
+                        throw new Error(`Connection Failed (${response.status}): ${response.statusText}`);
                     }
 
                     const data = await response.json();
@@ -473,10 +476,13 @@
             const handleCopyLink = async () => {
                 const text = window.location.href;
                 
+                // Robust Fallback for restricted environments
                 const copyFallback = () => {
                     try {
                         const textArea = document.createElement("textarea");
                         textArea.value = text;
+                        
+                        // Avoid scrolling to bottom
                         textArea.style.top = "0";
                         textArea.style.left = "0";
                         textArea.style.position = "fixed";
@@ -498,15 +504,17 @@
                     }
                 };
 
+                // Try modern API first
                 if (navigator.clipboard && navigator.clipboard.writeText) {
                     try {
                         await navigator.clipboard.writeText(text);
                         showToast('Link copied');
                     } catch (err) {
-                        console.warn('Clipboard API blocked, using fallback.');
+                        // If blocked (NotAllowedError), use fallback
                         copyFallback();
                     }
                 } else {
+                    // If API doesn't exist, use fallback
                     copyFallback();
                 }
             };
