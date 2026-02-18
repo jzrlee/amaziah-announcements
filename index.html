@@ -145,6 +145,7 @@
                                 hour12: true,
                                 timeZone: 'Asia/Manila' 
                             };
+                            // Using toLocaleString for better cross-browser time support
                             setLastUpdated(date.toLocaleString('en-US', options));
                         } else {
                             setLastUpdated(null);
@@ -463,7 +464,7 @@
 
                     {/* --- NAVBAR --- */}
                     <nav className="sticky top-0 z-50 bg-[#2a0c0f]/95 backdrop-blur border-b border-[#6b2a32] shadow-sm mb-4">
-                        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                        <div className="max-w-[95%] mx-auto px-4 sm:px-6 lg:px-8">
                             <div className="flex items-center justify-between h-16">
                                 <div className="flex items-center gap-3">
                                      {CONFIG.logoUrl ? (
@@ -523,7 +524,7 @@
                     </nav>
 
                     {/* --- MAIN CONTENT --- */}
-                    <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-20 relative">
+                    <main className="max-w-[95%] mx-auto px-4 sm:px-6 lg:px-8 pb-20 relative">
                         {!loading && slides.length === 0 ? (
                             <div className="flex flex-col items-center justify-center py-20 gap-6">
                                 {adminToken ? (
@@ -576,7 +577,7 @@
                                         return (
                                             <div 
                                                 key={slide.id} 
-                                                // REMOVED width restriction (md:w-[85%]) to allow full width alignment
+                                                // Removed width restriction for full expansion
                                                 className={`relative w-full bg-[#5d2229] rounded-lg overflow-hidden shadow-2xl border border-[#6b2a32] group transition-transform duration-300 ${isSelectMode ? '' : 'hover:scale-[1.01]'}`}
                                                 onClick={() => isSelectMode ? toggleDeleteSelection(slide) : null}
                                             >
