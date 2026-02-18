@@ -145,7 +145,6 @@
                                 hour12: true,
                                 timeZone: 'Asia/Manila' 
                             };
-                            // Using toLocaleString for better cross-browser time support
                             setLastUpdated(date.toLocaleString('en-US', options));
                         } else {
                             setLastUpdated(null);
@@ -549,7 +548,6 @@
                             <div className="flex flex-col items-center w-full">
                                 
                                 {/* STATUS BARS (Split Layout) */}
-                                {/* REMOVED md:w-[85%] constraint so it matches navbar alignment */}
                                 <div className="w-full flex flex-col md:flex-row justify-between items-center gap-2 mb-6">
                                     
                                     {/* Left: Presented at */}
@@ -578,7 +576,7 @@
                                         return (
                                             <div 
                                                 key={slide.id} 
-                                                // REMOVED md:w-[85%] to allow full width alignment
+                                                // REMOVED width restriction (md:w-[85%]) to allow full width alignment
                                                 className={`relative w-full bg-[#5d2229] rounded-lg overflow-hidden shadow-2xl border border-[#6b2a32] group transition-transform duration-300 ${isSelectMode ? '' : 'hover:scale-[1.01]'}`}
                                                 onClick={() => isSelectMode ? toggleDeleteSelection(slide) : null}
                                             >
