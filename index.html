@@ -144,7 +144,8 @@
                     }
 
                     // 2. If Admin OR JSON failed, fetch from API (Limited Reads, but necessary for Admin)
-                    if (source === 'API' || imageFiles.length === 0) {
+                    // Optimization: If source is JSON, we trust it even if empty, to avoid API hits
+                    if (source === 'API') {
                         const headers = adminToken ? { 'Authorization': `token ${adminToken}` } : {};
                         const response = await fetch(`https://api.github.com/repos/${CONFIG.username}/${CONFIG.repo}/contents/${CONFIG.folder}?t=${Date.now()}`, { 
                             headers,
@@ -276,19 +277,27 @@
                         cache: 'no-store'
                     });
                     
-                    if (!response.ok) return; // If empty or error, skip
+                    let imageFiles = [];
 
-                    const data = await response.json();
-                    const imageFiles = Array.isArray(data) ? data
-                        .filter(file => file.name.match(/\.(jpg|jpeg|png|gif|webp)$/i))
-                        .map(file => ({
-                            id: file.sha,
-                            name: file.name,
-                            url: file.download_url, // No timestamp in manifest
-                            path: file.path,
-                            sha: file.sha
-                        }))
-                        .sort((a, b) => a.name.localeCompare(b.name)) : [];
+                    if (response.ok) {
+                        const data = await response.json();
+                        imageFiles = Array.isArray(data) ? data
+                            .filter(file => file.name.match(/\.(jpg|jpeg|png|gif|webp)$/i))
+                            .map(file => ({
+                                id: file.sha,
+                                name: file.name,
+                                url: file.download_url, // No timestamp in manifest
+                                path: file.path,
+                                sha: file.sha
+                            }))
+                            .sort((a, b) => a.name.localeCompare(b.name)) : [];
+                    } else if (response.status === 404) {
+                        // 404 means the folder is empty/deleted, so we write an empty list
+                        imageFiles = [];
+                    } else {
+                        // Real error, abort logic
+                        return; 
+                    }
 
                     // 2. Prepare JSON Content (Base64)
                     const content = btoa(JSON.stringify(imageFiles, null, 2));
