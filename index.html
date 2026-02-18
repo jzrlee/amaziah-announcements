@@ -59,7 +59,8 @@
         const CONFIG = {
             username: "jzrlee",               
             repo: "amaziah-announcements",    
-            folder: "images",                 
+            folder: "images",
+            branch: "main",                   // Branch name for raw content fetching
             logoUrl: "https://raw.githubusercontent.com/jzrlee/amaziah-announcements/main/logo.png"
         };
 
@@ -121,35 +122,57 @@
                 }
 
                 try {
-                    const headers = adminToken ? { 'Authorization': `token ${adminToken}` } : {};
-                    const response = await fetch(`https://api.github.com/repos/${CONFIG.username}/${CONFIG.repo}/contents/${CONFIG.folder}?t=${Date.now()}`, { 
-                        headers,
-                        cache: 'no-store'
-                    });
-                    
-                    if (!response.ok) {
-                        if (response.status === 404) {
-                            setSlides([]);
-                            if (!isBackground) setLoading(false);
-                            return;
+                    let imageFiles = [];
+                    let source = 'API';
+
+                    // 1. If NOT Admin, try to fetch the Static JSON Manifest first (Unlimited Reads)
+                    if (!adminToken) {
+                        try {
+                            const jsonResp = await fetch(`https://raw.githubusercontent.com/${CONFIG.username}/${CONFIG.repo}/${CONFIG.branch}/images.json?t=${Date.now()}`);
+                            if (jsonResp.ok) {
+                                let rawData = await jsonResp.json();
+                                // IMPORTANT: Add timestamp to URLs from JSON so they don't get cached by browser
+                                imageFiles = rawData.map(img => ({
+                                    ...img,
+                                    url: `${img.url}?t=${Date.now()}` 
+                                }));
+                                source = 'JSON';
+                            }
+                        } catch (e) {
+                            console.log("Manifest unavailable, falling back to API");
                         }
-                        if (response.status === 403) {
-                             throw new Error("GitHub Rate Limit Exceeded. Please wait 1 hour or Log In.");
-                        }
-                        throw new Error(`Connection Failed (${response.status}): ${response.statusText}`);
                     }
 
-                    const data = await response.json();
-                    const imageFiles = Array.isArray(data) ? data
-                        .filter(file => file.name.match(/\.(jpg|jpeg|png|gif|webp)$/i))
-                        .map(file => ({
-                            id: file.sha,
-                            name: file.name,
-                            url: `${file.download_url}?t=${Date.now()}`,
-                            path: file.path,
-                            sha: file.sha
-                        }))
-                        .sort((a, b) => a.name.localeCompare(b.name)) : [];
+                    // 2. If Admin OR JSON failed, fetch from API (Limited Reads, but necessary for Admin)
+                    if (source === 'API' || imageFiles.length === 0) {
+                        const headers = adminToken ? { 'Authorization': `token ${adminToken}` } : {};
+                        const response = await fetch(`https://api.github.com/repos/${CONFIG.username}/${CONFIG.repo}/contents/${CONFIG.folder}?t=${Date.now()}`, { 
+                            headers,
+                            cache: 'no-store'
+                        });
+                        
+                        if (!response.ok) {
+                            if (response.status === 404) {
+                                setSlides([]); // Empty repo is valid
+                                if (!isBackground) setLoading(false);
+                                return;
+                            }
+                            if (response.status === 403) throw new Error("GitHub Rate Limit Exceeded. Please wait 1 hour or Log In.");
+                            throw new Error(`Connection Failed (${response.status}): ${response.statusText}`);
+                        }
+
+                        const data = await response.json();
+                        imageFiles = Array.isArray(data) ? data
+                            .filter(file => file.name.match(/\.(jpg|jpeg|png|gif|webp)$/i))
+                            .map(file => ({
+                                id: file.sha,
+                                name: file.name,
+                                url: `${file.download_url}?t=${Date.now()}`,
+                                path: file.path,
+                                sha: file.sha
+                            }))
+                            .sort((a, b) => a.name.localeCompare(b.name)) : [];
+                    }
 
                     // Calculate Last Updated from the newest file (last in array)
                     if (imageFiles.length > 0) {
@@ -243,6 +266,66 @@
                 }
             }, [showQR]);
 
+            // --- MANIFEST GENERATOR ---
+            // This function creates/updates images.json so viewers don't hit API limits
+            const regenerateManifest = async () => {
+                try {
+                    // 1. Fetch current list via API (Authoritative source)
+                    const response = await fetch(`https://api.github.com/repos/${CONFIG.username}/${CONFIG.repo}/contents/${CONFIG.folder}`, {
+                        headers: { 'Authorization': `token ${adminToken}` },
+                        cache: 'no-store'
+                    });
+                    
+                    if (!response.ok) return; // If empty or error, skip
+
+                    const data = await response.json();
+                    const imageFiles = Array.isArray(data) ? data
+                        .filter(file => file.name.match(/\.(jpg|jpeg|png|gif|webp)$/i))
+                        .map(file => ({
+                            id: file.sha,
+                            name: file.name,
+                            url: file.download_url, // No timestamp in manifest
+                            path: file.path,
+                            sha: file.sha
+                        }))
+                        .sort((a, b) => a.name.localeCompare(b.name)) : [];
+
+                    // 2. Prepare JSON Content (Base64)
+                    const content = btoa(JSON.stringify(imageFiles, null, 2));
+
+                    // 3. Get SHA of existing manifest to update it
+                    let sha = null;
+                    try {
+                        const manifestResp = await fetch(`https://api.github.com/repos/${CONFIG.username}/${CONFIG.repo}/contents/images.json`, {
+                            headers: { 'Authorization': `token ${adminToken}` },
+                            cache: 'no-store'
+                        });
+                        if (manifestResp.ok) {
+                            const manifestData = await manifestResp.json();
+                            sha = manifestData.sha;
+                        }
+                    } catch (e) { /* It's ok if it doesn't exist yet */ }
+
+                    // 4. Write/Update images.json
+                    await fetch(`https://api.github.com/repos/${CONFIG.username}/${CONFIG.repo}/contents/images.json`, {
+                        method: 'PUT',
+                        headers: {
+                            'Authorization': `token ${adminToken}`,
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({
+                            message: `Update Manifest [Auto]`,
+                            content: content,
+                            sha: sha || undefined
+                        })
+                    });
+                    console.log("Manifest Updated");
+
+                } catch (e) {
+                    console.error("Failed to update manifest", e);
+                }
+            };
+
             // --- ADMIN ACTIONS ---
 
             const handleLogin = async (e) => {
@@ -335,6 +418,9 @@
                         failCount++;
                     }
                 }
+
+                setUploadStatus('Updating Index...');
+                await regenerateManifest(); // Generate static JSON for viewers
 
                 setIsUploading(false);
                 setUploadStatus('');
@@ -433,6 +519,9 @@
                         }
                     }
 
+                    setUploadStatus('Updating Index...');
+                    await regenerateManifest(); // Update static JSON
+
                     setIsUploading(false);
                     setUploadStatus('');
                     setIsSelectMode(false);
@@ -481,8 +570,6 @@
                     try {
                         const textArea = document.createElement("textarea");
                         textArea.value = text;
-                        
-                        // Avoid scrolling to bottom
                         textArea.style.top = "0";
                         textArea.style.left = "0";
                         textArea.style.position = "fixed";
