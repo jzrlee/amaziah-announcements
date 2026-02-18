@@ -145,7 +145,8 @@
                                 hour12: true,
                                 timeZone: 'Asia/Manila' 
                             };
-                            setLastUpdated(date.toLocaleDateString('en-US', options));
+                            // Using toLocaleString for better cross-browser time support
+                            setLastUpdated(date.toLocaleString('en-US', options));
                         } else {
                             setLastUpdated(null);
                         }
@@ -442,7 +443,7 @@
 
                     {/* --- NAVBAR --- */}
                     <nav className="sticky top-0 z-50 bg-[#2a0c0f]/95 backdrop-blur border-b border-[#6b2a32] shadow-sm mb-4">
-                        <div className="w-full md:w-[85%] mx-auto px-4 sm:px-6 lg:px-8">
+                        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                             <div className="flex items-center justify-between h-16">
                                 <div className="flex items-center gap-3">
                                      {CONFIG.logoUrl ? (
@@ -508,7 +509,7 @@
                                 {adminToken ? (
                                     <div 
                                         onClick={() => setShowUpload(true)}
-                                        className="w-full md:w-[60%] h-64 border-4 border-dashed border-[#DCA943]/30 rounded-xl flex flex-col items-center justify-center cursor-pointer hover:bg-[#5d2229] hover:border-[#DCA943]/60 transition-all group"
+                                        className="w-full h-64 border-4 border-dashed border-[#DCA943]/30 rounded-xl flex flex-col items-center justify-center cursor-pointer hover:bg-[#5d2229] hover:border-[#DCA943]/60 transition-all group"
                                     >
                                         <div className="p-4 bg-[#DCA943]/10 rounded-full group-hover:bg-[#DCA943]/20 transition-colors mb-4">
                                             <UploadIcon className="w-12 h-12 text-[#DCA943]" width="48" height="48" />
@@ -527,7 +528,8 @@
                             <div className="flex flex-col items-center w-full">
                                 
                                 {/* STATUS BARS (Split Layout) */}
-                                <div className="w-full md:w-[85%] flex flex-col md:flex-row justify-between items-center gap-2 mb-6">
+                                {/* REMOVED md:w-[85%] constraint so it matches navbar alignment */}
+                                <div className="w-full flex flex-col md:flex-row justify-between items-center gap-2 mb-6">
                                     
                                     {/* Left: Presented at */}
                                     <div className="flex items-center gap-2 px-4 py-2 rounded-full bg-[#2a0c0f]/80 border border-[#DCA943]/30 shadow-lg backdrop-blur-sm">
@@ -555,7 +557,8 @@
                                         return (
                                             <div 
                                                 key={slide.id} 
-                                                className={`relative w-full md:w-[85%] bg-[#5d2229] rounded-lg overflow-hidden shadow-2xl border border-[#6b2a32] group transition-transform duration-300 ${isSelectMode ? '' : 'hover:scale-[1.01]'}`}
+                                                // REMOVED md:w-[85%] to allow full width alignment
+                                                className={`relative w-full bg-[#5d2229] rounded-lg overflow-hidden shadow-2xl border border-[#6b2a32] group transition-transform duration-300 ${isSelectMode ? '' : 'hover:scale-[1.01]'}`}
                                                 onClick={() => isSelectMode ? toggleDeleteSelection(slide) : null}
                                             >
                                                 
