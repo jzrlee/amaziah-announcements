@@ -161,25 +161,52 @@
 
             // --- ADMIN ACTIONS ---
 
-            const handleLogin = (e) => {
+            const handleLogin = async (e) => {
                 e.preventDefault();
                 const token = e.target.token.value;
                 if(token) {
+                    setShowLogin(false);
+                    
+                    // Start Transition
+                    setIsUploading(true);
+                    setUploadStatus("Logging in...");
+                    
+                    // Artificial delay for smooth transition
+                    await new Promise(resolve => setTimeout(resolve, 1500));
+
                     localStorage.setItem('github_pat', token);
                     setAdminToken(token);
-                    setShowLogin(false);
+                    
+                    await fetchImages();
+                    
+                    // End Transition
+                    setIsUploading(false);
+                    setUploadStatus('');
                     showAlert("Success", "Admin Access Granted!");
-                    fetchImages();
                 }
             };
 
             const handleLogout = () => {
-                showConfirm("Confirm Logout", "Are you sure you want to log out of Admin mode?", () => {
+                showConfirm("Confirm Logout", "Are you sure you want to log out of Admin mode?", async () => {
+                    closeConfirm();
+                    
+                    // Start Transition
+                    setIsUploading(true);
+                    setUploadStatus("Logging out...");
+                    
+                    // Simulate processing
+                    await new Promise(resolve => setTimeout(resolve, 1500));
+
                     localStorage.removeItem('github_pat');
                     setAdminToken('');
                     setIsSelectMode(false);
                     setDeleteSelection([]);
-                    closeConfirm();
+                    
+                    await fetchImages();
+                    
+                    // End Transition
+                    setIsUploading(false);
+                    setUploadStatus('');
                 });
             };
 
@@ -380,11 +407,11 @@
                     
                     {/* --- LOADING OVERLAY --- */}
                     {/* UPDATED: Overlay is visible if loading OR isUploading. Removed restrictive && !showUpload logic */}
-                    <div className={`fixed inset-0 z-[9999] bg-[#48191E] flex items-center justify-center transition-opacity duration-1000 ease-in-out ${loading || isUploading ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}>
+                    <div className={`fixed inset-0 z-[9999] bg-[#48191E] flex items-center justify-center transition-opacity duration-1000 ease-in-out ${loading || (isUploading && !showUpload && !confirmState.show) ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}>
                         {CONFIG.logoUrl ? (
                             <div className="flex flex-col items-center gap-4">
                                 <img src={CONFIG.logoUrl} alt="Loading..." className="h-24 w-auto object-contain animate-heartbeat" />
-                                {isUploading && <p className="text-[#DCA943] text-sm animate-pulse">{uploadStatus}</p>}
+                                {isUploading && !showUpload && !confirmState.show && <p className="text-[#DCA943] text-sm animate-pulse">{uploadStatus}</p>}
                             </div>
                         ) : (
                             <div className="text-[#DCA943] animate-pulse">Connecting to Amaziah Board...</div>
