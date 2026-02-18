@@ -130,9 +130,12 @@
                     // Calculate Last Updated from the newest file (last in array)
                     if (imageFiles.length > 0) {
                         const newestFile = imageFiles[imageFiles.length - 1];
+                        // Regex matches YYYY-MM-DD_HH-mm-ss pattern
                         const match = newestFile.name.match(/^(\d{4})-(\d{2})-(\d{2})_(\d{2})-(\d{2})-(\d{2})/);
                         if (match) {
-                            const date = new Date(match[1], match[2] - 1, match[3], match[4], match[5], match[6]);
+                            // Treat the filename parts as UTC since they were created via toISOString()
+                            const date = new Date(Date.UTC(match[1], match[2] - 1, match[3], match[4], match[5], match[6]));
+                            
                             const options = { 
                                 month: 'long', 
                                 day: 'numeric', 
@@ -499,7 +502,7 @@
                     </nav>
 
                     {/* --- MAIN CONTENT --- */}
-                    <main className="w-full px-2">
+                    <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-20 relative">
                         {!loading && slides.length === 0 ? (
                             <div className="flex flex-col items-center justify-center py-20 gap-6">
                                 {adminToken ? (
@@ -524,12 +527,12 @@
                             <div className="flex flex-col items-center w-full">
                                 
                                 {/* STATUS BARS (Split Layout) */}
-                                <div className="w-full flex flex-col md:flex-row justify-between items-center gap-2 mb-6 md:w-[85%]">
+                                <div className="w-full flex flex-col md:flex-row justify-between items-center gap-2 mb-6">
                                     
                                     {/* Left: Presented at */}
                                     <div className="flex items-center gap-2 px-4 py-2 rounded-full bg-[#2a0c0f]/80 border border-[#DCA943]/30 shadow-lg backdrop-blur-sm">
-                                        <span className="text-sm font-bold text-white tracking-wide">
-                                            Presented at Sunday ({presentationDate})
+                                        <span className="text-sm text-white tracking-wide">
+                                            Presented at Sunday (<span className="font-bold">{presentationDate}</span>)
                                         </span>
                                     </div>
 
@@ -537,8 +540,8 @@
                                     {lastUpdated && (
                                         <div className="flex items-center gap-2 px-4 py-2 rounded-full bg-[#2a0c0f]/80 border border-[#DCA943]/30 shadow-lg backdrop-blur-sm">
                                             <div className="w-2 h-2 rounded-full bg-[#DCA943] animate-pulse"></div>
-                                            <span className="text-sm font-bold text-white tracking-wide">
-                                                Last updated: {lastUpdated}
+                                            <span className="text-sm text-white tracking-wide">
+                                                Last updated: <span className="font-bold">{lastUpdated}</span>
                                             </span>
                                         </div>
                                     )}
@@ -552,7 +555,7 @@
                                         return (
                                             <div 
                                                 key={slide.id} 
-                                                className={`relative w-full md:w-[85%] bg-[#5d2229] rounded-lg overflow-hidden shadow-2xl border border-[#6b2a32] group transition-transform duration-300 ${isSelectMode ? '' : 'hover:scale-[1.01]'}`}
+                                                className={`relative w-full bg-[#5d2229] rounded-lg overflow-hidden shadow-2xl border border-[#6b2a32] group transition-transform duration-300 ${isSelectMode ? '' : 'hover:scale-[1.01]'}`}
                                                 onClick={() => isSelectMode ? toggleDeleteSelection(slide) : null}
                                             >
                                                 
