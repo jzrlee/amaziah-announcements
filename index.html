@@ -442,7 +442,7 @@
 
                     {/* --- NAVBAR --- */}
                     <nav className="sticky top-0 z-50 bg-[#2a0c0f]/95 backdrop-blur border-b border-[#6b2a32] shadow-sm mb-4">
-                        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                        <div className="w-full md:w-[85%] mx-auto px-4 sm:px-6 lg:px-8">
                             <div className="flex items-center justify-between h-16">
                                 <div className="flex items-center gap-3">
                                      {CONFIG.logoUrl ? (
@@ -527,7 +527,7 @@
                             <div className="flex flex-col items-center w-full">
                                 
                                 {/* STATUS BARS (Split Layout) */}
-                                <div className="w-full flex flex-col md:flex-row justify-between items-center gap-2 mb-6">
+                                <div className="w-full md:w-[85%] flex flex-col md:flex-row justify-between items-center gap-2 mb-6">
                                     
                                     {/* Left: Presented at */}
                                     <div className="flex items-center gap-2 px-4 py-2 rounded-full bg-[#2a0c0f]/80 border border-[#DCA943]/30 shadow-lg backdrop-blur-sm">
@@ -555,7 +555,7 @@
                                         return (
                                             <div 
                                                 key={slide.id} 
-                                                className={`relative w-full bg-[#5d2229] rounded-lg overflow-hidden shadow-2xl border border-[#6b2a32] group transition-transform duration-300 ${isSelectMode ? '' : 'hover:scale-[1.01]'}`}
+                                                className={`relative w-full md:w-[85%] bg-[#5d2229] rounded-lg overflow-hidden shadow-2xl border border-[#6b2a32] group transition-transform duration-300 ${isSelectMode ? '' : 'hover:scale-[1.01]'}`}
                                                 onClick={() => isSelectMode ? toggleDeleteSelection(slide) : null}
                                             >
                                                 
